@@ -157,10 +157,11 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
 // ConsensusVersion implements AppModule/ConsensusVersion.
 func (AppModule) ConsensusVersion() uint64 { return ConsensusVersion }
 
+// Removed for manifest module to override instead.
 // BeginBlock returns the begin blocker for the mint module.
-func (am AppModule) BeginBlock(ctx context.Context) error {
-	return BeginBlocker(ctx, am.keeper, am.inflationCalculator)
-}
+// func (am AppModule) BeginBlock(ctx context.Context) error {
+// 	return BeginBlocker(ctx, am.keeper, am.inflationCalculator)
+// }
 
 // AppModuleSimulation functions
 
