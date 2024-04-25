@@ -159,6 +159,7 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx context.Context) (updates 
 		validator := k.mustGetValidator(ctx, valAddr)
 
 		if validator.Jailed {
+			// https://github.com/cosmos/cosmos-sdk/pull/20059
 			continue
 		}
 
