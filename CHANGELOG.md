@@ -38,18 +38,99 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Bug Fixes
+
+* (baseapp) [#20107](https://github.com/cosmos/cosmos-sdk/pull/20107) Avoid header height overwrite block height.
+
+## [v0.50.6](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.6) - 2024-04-22
+
+### Features
+
+* (types) [#19759](https://github.com/cosmos/cosmos-sdk/pull/19759) Align SignerExtractionAdapter in PriorityNonceMempool Remove.
+* (client) [#19870](https://github.com/cosmos/cosmos-sdk/pull/19870) Add new query command `wait-tx`. Alias `event-query-tx-for` to `wait-tx` for backward compatibility.
+
+### Improvements 
+
+* (telemetry) [#19903](https://github.com/cosmos/cosmos-sdk/pull/19903) Conditionally emit metrics based on enablement.
+    * **Introduction of `Now` Function**: Added a new function called `Now` to the telemetry package. It returns the current system time if telemetry is enabled, or a zero time if telemetry is not enabled.
+    * **Atomic Global Variable**: Implemented an atomic global variable to manage the state of telemetry's enablement. This ensures thread safety for the telemetry state.
+    * **Conditional Telemetry Emission**: All telemetry functions have been updated to emit metrics only when telemetry is enabled. They perform a check with `isTelemetryEnabled()` and return early if telemetry is disabled, minimizing unnecessary operations and overhead.
+* (deps) [#19810](https://github.com/cosmos/cosmos-sdk/pull/19810) Upgrade prometheus version and fix API breaking change due to prometheus bump.
+* (deps) [#19810](https://github.com/cosmos/cosmos-sdk/pull/19810) Bump `cosmossdk.io/store` to v1.1.0.
+* (server) [#19884](https://github.com/cosmos/cosmos-sdk/pull/19884) Add start customizability to start command options.
+* (x/gov) [#19853](https://github.com/cosmos/cosmos-sdk/pull/19853) Emit `depositor` in `EventTypeProposalDeposit`.
+* (x/gov) [#19844](https://github.com/cosmos/cosmos-sdk/pull/19844) Emit the proposer of governance proposals.
+* (baseapp) [#19616](https://github.com/cosmos/cosmos-sdk/pull/19616) Don't share gas meter in tx execution.
+
+## Bug Fixes
+
+* (x/authz) [#20114](https://github.com/cosmos/cosmos-sdk/pull/20114) Follow up of [GHSA-4j93-fm92-rp4m](https://github.com/cosmos/cosmos-sdk/security/advisories/GHSA-4j93-fm92-rp4m) for `x/authz`.
+* (crypto) [#19691](https://github.com/cosmos/cosmos-sdk/pull/19745) Fix tx sign doesn't throw an error when incorrect Ledger is used.
+* (baseapp) [#19970](https://github.com/cosmos/cosmos-sdk/pull/19970) Fix default config values to use no-op mempool as default.
+* (crypto) [#20027](https://github.com/cosmos/cosmos-sdk/pull/20027) secp256r1 keys now implement gogoproto's customtype interface.
+* (x/bank) [#20028](https://github.com/cosmos/cosmos-sdk/pull/20028) Align query with multi denoms for send-enabled.
+
+## [v0.50.5](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.5) - 2024-03-12
+
+### Features
+
+* (baseapp) [#19626](https://github.com/cosmos/cosmos-sdk/pull/19626) Add `DisableBlockGasMeter` option to `BaseApp`, which removes the block gas meter during transaction execution.
+
 ### Improvements
 
+* (x/distribution) [#19707](https://github.com/cosmos/cosmos-sdk/pull/19707) Add autocli config for `DelegationTotalRewards` for CLI consistency with `q rewards` commands in previous versions.
+* (x/auth) [#19651](https://github.com/cosmos/cosmos-sdk/pull/19651) Allow empty public keys in `GetSignBytesAdapter`.
+
+### Bug Fixes
+
+* (x/gov) [#19725](https://github.com/cosmos/cosmos-sdk/pull/19725) Fetch a failed proposal tally from proposal.FinalTallyResult in the gprc query.
+* (types) [#19709](https://github.com/cosmos/cosmos-sdk/pull/19709) Fix skip staking genesis export when using `CoreAppModuleAdaptor` / `CoreAppModuleBasicAdaptor` for it.
+* (x/auth) [#19549](https://github.com/cosmos/cosmos-sdk/pull/19549) Accept custom get signers when injecting `x/auth/tx`.
+* (x/staking) Fix a possible bypass of delegator slashing: [GHSA-86h5-xcpx-cfqc](https://github.com/cosmos/cosmos-sdk/security/advisories/GHSA-86h5-xcpx-cfqc)
+* (baseapp) Fix a bug in `baseapp.ValidateVoteExtensions` helper ([GHSA-95rx-m9m5-m94v](https://github.com/cosmos/cosmos-sdk/security/advisories/GHSA-95rx-m9m5-m94v)). The helper has been fixed and for avoiding API breaking changes `currentHeight` and `chainID` arguments are ignored. Those arguments are removed from the helper in v0.51+.
+
+## [v0.50.4](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.4) - 2024-02-19
+
+### Features
+
+* (server) [#19280](https://github.com/cosmos/cosmos-sdk/pull/19280) Adds in-place testnet CLI command.
+
+### Improvements
+
+* (client) [#19393](https://github.com/cosmos/cosmos-sdk/pull/19393/) Add `ReadDefaultValuesFromDefaultClientConfig` to populate the default values from the default client config in client.Context without creating a app folder.
+
+### Bug Fixes
+
+* (x/auth/vesting) [GHSA-4j93-fm92-rp4m](#bug-fixes) Add `BlockedAddr` check in `CreatePeriodicVestingAccount`.
+* (baseapp) [#19338](https://github.com/cosmos/cosmos-sdk/pull/19338) Set HeaderInfo in context when calling `setState`.
+* (baseapp): [#19200](https://github.com/cosmos/cosmos-sdk/pull/19200) Ensure that sdk side ve math matches cometbft.
+* [#19106](https://github.com/cosmos/cosmos-sdk/pull/19106) Allow empty public keys when setting signatures. Public keys aren't needed for every transaction.
+* (baseapp) [#19198](https://github.com/cosmos/cosmos-sdk/pull/19198) Remove usage of pointers in logs in all optimistic execution goroutines.
+* (baseapp) [#19177](https://github.com/cosmos/cosmos-sdk/pull/19177) Fix baseapp `DefaultProposalHandler` same-sender non-sequential sequence.
+* (crypto) [#19371](https://github.com/cosmos/cosmos-sdk/pull/19371) Avoid CLI redundant log in stdout, log to stderr instead.
+
+## [v0.50.3](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.3) - 2024-01-15
+
+### Features
+
+* (types) [#18991](https://github.com/cosmos/cosmos-sdk/pull/18991) Add SignerExtractionAdapter to PriorityNonceMempool/Config and provide Default implementation matching existing behavior.
+* (gRPC) [#19043](https://github.com/cosmos/cosmos-sdk/pull/19043) Add `halt_height` to the gRPC `/cosmos/base/node/v1beta1/config` request.
+
+### Improvements
+
+* (x/bank) [#18956](https://github.com/cosmos/cosmos-sdk/pull/18956) Introduced a new `DenomOwnersByQuery` query method for `DenomOwners`, which accepts the denom value as a query string parameter, resolving issues with denoms containing slashes.
 * (x/gov) [#18707](https://github.com/cosmos/cosmos-sdk/pull/18707) Improve genesis validation.
 * (x/auth/tx) [#18772](https://github.com/cosmos/cosmos-sdk/pull/18772) Remove misleading gas wanted from tx simulation failure log.
 * (client/tx) [#18852](https://github.com/cosmos/cosmos-sdk/pull/18852) Add `WithFromName` to tx factory.
 * (types) [#18888](https://github.com/cosmos/cosmos-sdk/pull/18888) Speedup DecCoin.Sort() if len(coins) <= 1
 * (types) [#18875](https://github.com/cosmos/cosmos-sdk/pull/18875) Speedup coins.Sort() if len(coins) <= 1
 * (baseapp) [#18915](https://github.com/cosmos/cosmos-sdk/pull/18915) Add a new `ExecModeVerifyVoteExtension` exec mode and ensure it's populated in the `Context` during `VerifyVoteExtension` execution.
+* (testutil) [#18930](https://github.com/cosmos/cosmos-sdk/pull/18930) Add NodeURI for clientCtx.
 
 ### Bug Fixes
 
-* (baseapp) [#18609](https://github.com/cosmos/cosmos-sdk/issues/18609) Fixed accounting in the block gas meter after BeginBlock and before DeliverTx, ensuring transaction processing always starts with the expected zeroed out block gas meter.
+* (baseapp) [#19058](https://github.com/cosmos/cosmos-sdk/pull/19058) Fix baseapp posthandler branch would fail if the `runMsgs` had returned an error.
+* (baseapp) [#18609](https://github.com/cosmos/cosmos-sdk/issues/18609) Fixed accounting in the block gas meter after module's beginBlock and before DeliverTx, ensuring transaction processing always starts with the expected zeroed out block gas meter.
 * (baseapp) [#18895](https://github.com/cosmos/cosmos-sdk/pull/18895) Fix de-duplicating vote extensions during validation in ValidateVoteExtensions.
 
 ## [v0.50.2](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.2) - 2023-12-11

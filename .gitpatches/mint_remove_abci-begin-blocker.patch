@@ -1,0 +1,107 @@
+diff --git a/x/mint/abci.go b/x/mint/abci.go
+deleted file mode 100644
+index e9108d3ee8..0000000000
+--- a/x/mint/abci.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-package mint
+-
+-import (
+-	"context"
+-
+-	"github.com/cosmos/cosmos-sdk/telemetry"
+-	sdk "github.com/cosmos/cosmos-sdk/types"
+-	"github.com/cosmos/cosmos-sdk/x/mint/keeper"
+-	"github.com/cosmos/cosmos-sdk/x/mint/types"
+-)
+-
+-// BeginBlocker mints new tokens for the previous block.
+-func BeginBlocker(ctx context.Context, k keeper.Keeper, ic types.InflationCalculationFn) error {
+-	defer telemetry.ModuleMeasureSince(types.ModuleName, telemetry.Now(), telemetry.MetricKeyBeginBlocker)
+-
+-	// fetch stored minter & params
+-	minter, err := k.Minter.Get(ctx)
+-	if err != nil {
+-		return err
+-	}
+-
+-	params, err := k.Params.Get(ctx)
+-	if err != nil {
+-		return err
+-	}
+-
+-	// recalculate inflation rate
+-	totalStakingSupply, err := k.StakingTokenSupply(ctx)
+-	if err != nil {
+-		return err
+-	}
+-
+-	bondedRatio, err := k.BondedRatio(ctx)
+-	if err != nil {
+-		return err
+-	}
+-
+-	minter.Inflation = ic(ctx, minter, params, bondedRatio)
+-	minter.AnnualProvisions = minter.NextAnnualProvisions(params, totalStakingSupply)
+-	if err = k.Minter.Set(ctx, minter); err != nil {
+-		return err
+-	}
+-
+-	// mint coins, update supply
+-	mintedCoin := minter.BlockProvision(params)
+-	mintedCoins := sdk.NewCoins(mintedCoin)
+-
+-	err = k.MintCoins(ctx, mintedCoins)
+-	if err != nil {
+-		return err
+-	}
+-
+-	// send the minted coins to the fee collector account
+-	err = k.AddCollectedFees(ctx, mintedCoins)
+-	if err != nil {
+-		return err
+-	}
+-
+-	if mintedCoin.Amount.IsInt64() {
+-		defer telemetry.ModuleSetGauge(types.ModuleName, float32(mintedCoin.Amount.Int64()), "minted_tokens")
+-	}
+-
+-	sdkCtx := sdk.UnwrapSDKContext(ctx)
+-	sdkCtx.EventManager().EmitEvent(
+-		sdk.NewEvent(
+-			types.EventTypeMint,
+-			sdk.NewAttribute(types.AttributeKeyBondedRatio, bondedRatio.String()),
+-			sdk.NewAttribute(types.AttributeKeyInflation, minter.Inflation.String()),
+-			sdk.NewAttribute(types.AttributeKeyAnnualProvisions, minter.AnnualProvisions.String()),
+-			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
+-		),
+-	)
+-
+-	return nil
+-}
+diff --git a/x/mint/module.go b/x/mint/module.go
+index 7d10342d96..49978dfd9a 100644
+--- a/x/mint/module.go
++++ b/x/mint/module.go
+@@ -35,8 +35,7 @@ var (
+ 	_ module.HasGenesis          = AppModule{}
+ 	_ module.HasServices         = AppModule{}
+ 
+-	_ appmodule.AppModule       = AppModule{}
+-	_ appmodule.HasBeginBlocker = AppModule{}
++	_ appmodule.AppModule = AppModule{}
+ )
+ 
+ // AppModuleBasic defines the basic application module used by the mint module.
+@@ -157,11 +156,6 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
+ // ConsensusVersion implements AppModule/ConsensusVersion.
+ func (AppModule) ConsensusVersion() uint64 { return ConsensusVersion }
+ 
+-// BeginBlock returns the begin blocker for the mint module.
+-func (am AppModule) BeginBlock(ctx context.Context) error {
+-	return BeginBlocker(ctx, am.keeper, am.inflationCalculator)
+-}
+-
+ // AppModuleSimulation functions
+ 
+ // GenerateGenesisState creates a randomized GenState of the mint module.

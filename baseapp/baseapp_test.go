@@ -1,6 +1,7 @@
 package baseapp_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -45,9 +46,10 @@ var (
 
 type (
 	BaseAppSuite struct {
-		baseApp  *baseapp.BaseApp
-		cdc      *codec.ProtoCodec
-		txConfig client.TxConfig
+		baseApp   *baseapp.BaseApp
+		cdc       *codec.ProtoCodec
+		txConfig  client.TxConfig
+		logBuffer *bytes.Buffer
 	}
 
 	SnapshotsConfig struct {
@@ -65,8 +67,10 @@ func NewBaseAppSuite(t *testing.T, opts ...func(*baseapp.BaseApp)) *BaseAppSuite
 
 	txConfig := authtx.NewTxConfig(cdc, authtx.DefaultSignModes)
 	db := dbm.NewMemDB()
+	logBuffer := new(bytes.Buffer)
+	logger := log.NewLogger(logBuffer, log.ColorOption(false))
 
-	app := baseapp.NewBaseApp(t.Name(), log.NewTestLogger(t), db, txConfig.TxDecoder(), opts...)
+	app := baseapp.NewBaseApp(t.Name(), logger, db, txConfig.TxDecoder(), opts...)
 	require.Equal(t, t.Name(), app.Name())
 
 	app.SetInterfaceRegistry(cdc.InterfaceRegistry())
@@ -80,9 +84,10 @@ func NewBaseAppSuite(t *testing.T, opts ...func(*baseapp.BaseApp)) *BaseAppSuite
 	require.Nil(t, app.LoadLatestVersion())
 
 	return &BaseAppSuite{
-		baseApp:  app,
-		cdc:      cdc,
-		txConfig: txConfig,
+		baseApp:   app,
+		cdc:       cdc,
+		txConfig:  txConfig,
+		logBuffer: logBuffer,
 	}
 }
 
@@ -631,7 +636,6 @@ func TestBaseAppPostHandler(t *testing.T) {
 	}
 
 	suite := NewBaseAppSuite(t, anteOpt)
-
 	baseapptestutil.RegisterCounterServer(suite.baseApp.MsgServiceRouter(), CounterServerImpl{t, capKey1, []byte("foo")})
 
 	_, err := suite.baseApp.InitChain(&abci.RequestInitChain{
@@ -666,6 +670,14 @@ func TestBaseAppPostHandler(t *testing.T) {
 	require.False(t, res.TxResults[0].IsOK(), fmt.Sprintf("%v", res))
 
 	require.True(t, postHandlerRun)
+
+	// regression test, should not panic when runMsgs fails
+	tx = wonkyMsg(t, suite.txConfig, tx)
+	txBytes, err = suite.txConfig.TxEncoder()(tx)
+	require.NoError(t, err)
+	_, err = suite.baseApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1, Txs: [][]byte{txBytes}})
+	require.NoError(t, err)
+	require.NotContains(t, suite.logBuffer.String(), "panic recovered in runTx")
 }
 
 // Test and ensure that invalid block heights always cause errors.
@@ -690,24 +702,33 @@ func TestABCI_CreateQueryContext(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		name   string
-		height int64
-		prove  bool
-		expErr bool
+		name         string
+		height       int64
+		headerHeight int64
+		prove        bool
+		expErr       bool
 	}{
-		{"valid height", 2, true, false},
-		{"future height", 10, true, true},
-		{"negative height, prove=true", -1, true, true},
-		{"negative height, prove=false", -1, false, true},
+		{"valid height", 2, 2, true, false},
+		{"valid height with different initial height", 2, 1, true, false},
+		{"future height", 10, 10, true, true},
+		{"negative height, prove=true", -1, -1, true, true},
+		{"negative height, prove=false", -1, -1, false, true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := app.CreateQueryContext(tc.height, tc.prove)
+			if tc.headerHeight != tc.height {
+				_, err := app.InitChain(&abci.RequestInitChain{
+					InitialHeight: tc.headerHeight,
+				})
+				require.NoError(t, err)
+			}
+			ctx, err := app.CreateQueryContext(tc.height, tc.prove)
 			if tc.expErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.height, ctx.BlockHeight())
 			}
 		})
 	}

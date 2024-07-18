@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 	protov2 "google.golang.org/protobuf/proto"
 
+	"cosmossdk.io/core/header"
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
@@ -185,6 +186,13 @@ type BaseApp struct {
 	// including the goroutine handling.This is experimental and must be enabled
 	// by developers.
 	optimisticExec *oe.OptimisticExecution
+
+	// disableBlockGasMeter will disable the block gas meter if true, block gas meter is tricky to support
+	// when executing transactions in parallel.
+	// when disabled, the block gas meter in context is a noop one.
+	//
+	// SAFETY: it's safe to do if validators validate the total gas wanted in the `ProcessProposal`, which is the case in the default handler.
+	disableBlockGasMeter bool
 }
 
 // NewBaseApp returns a reference to an initialized BaseApp. It accepts a
@@ -468,11 +476,19 @@ func (app *BaseApp) IsSealed() bool { return app.sealed }
 // setState sets the BaseApp's state for the corresponding mode with a branched
 // multi-store (i.e. a CacheMultiStore) and a new Context with the same
 // multi-store branch, and provided header.
-func (app *BaseApp) setState(mode execMode, header cmtproto.Header) {
+func (app *BaseApp) setState(mode execMode, h cmtproto.Header) {
 	ms := app.cms.CacheMultiStore()
+	headerInfo := header.Info{
+		Height:  h.Height,
+		Time:    h.Time,
+		ChainID: h.ChainID,
+		AppHash: h.AppHash,
+	}
 	baseState := &state{
-		ms:  ms,
-		ctx: sdk.NewContext(ms, header, false, app.logger).WithStreamingManager(app.streamingManager),
+		ms: ms,
+		ctx: sdk.NewContext(ms, h, false, app.logger).
+			WithStreamingManager(app.streamingManager).
+			WithHeaderInfo(headerInfo),
 	}
 
 	switch mode {
@@ -631,6 +647,10 @@ func (app *BaseApp) getState(mode execMode) *state {
 }
 
 func (app *BaseApp) getBlockGasMeter(ctx sdk.Context) storetypes.GasMeter {
+	if app.disableBlockGasMeter {
+		return noopGasMeter{}
+	}
+
 	if maxGas := app.GetMaximumBlockGas(ctx); maxGas > 0 {
 		return storetypes.NewGasMeter(maxGas)
 	}
@@ -645,7 +665,8 @@ func (app *BaseApp) getContextForTx(mode execMode, txBytes []byte) sdk.Context {
 		panic(fmt.Sprintf("state is nil for mode %v", mode))
 	}
 	ctx := modeState.Context().
-		WithTxBytes(txBytes)
+		WithTxBytes(txBytes).
+		WithGasMeter(storetypes.NewInfiniteGasMeter())
 	// WithVoteInfos(app.voteInfos) // TODO: identify if this is needed
 
 	ctx = ctx.WithConsensusParams(app.GetConsensusParams(ctx))
@@ -936,11 +957,15 @@ func (app *BaseApp) runTx(mode execMode, txBytes []byte) (gInfo sdk.GasInfo, res
 		// Note that the state is still preserved.
 		postCtx := runMsgCtx.WithEventManager(sdk.NewEventManager())
 
-		newCtx, err := app.postHandler(postCtx, tx, mode == execModeSimulate, err == nil)
-		if err != nil {
-			return gInfo, nil, anteEvents, err
+		newCtx, errPostHandler := app.postHandler(postCtx, tx, mode == execModeSimulate, err == nil)
+		if errPostHandler != nil {
+			return gInfo, nil, anteEvents, errors.Join(err, errPostHandler)
 		}
 
+		// we don't want runTx to panic if runMsgs has failed earlier
+		if result == nil {
+			result = &sdk.Result{}
+		}
 		result.Events = append(result.Events, newCtx.EventManager().ABCIEvents()...)
 	}
 

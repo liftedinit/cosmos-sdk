@@ -35,8 +35,7 @@ var (
 	_ module.HasGenesis          = AppModule{}
 	_ module.HasServices         = AppModule{}
 
-	_ appmodule.AppModule       = AppModule{}
-	_ appmodule.HasBeginBlocker = AppModule{}
+	_ appmodule.AppModule = AppModule{}
 )
 
 // AppModuleBasic defines the basic application module used by the mint module.
@@ -157,10 +156,11 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
 // ConsensusVersion implements AppModule/ConsensusVersion.
 func (AppModule) ConsensusVersion() uint64 { return ConsensusVersion }
 
+// Removed for manifest module to override instead.
 // BeginBlock returns the begin blocker for the mint module.
-func (am AppModule) BeginBlock(ctx context.Context) error {
-	return BeginBlocker(ctx, am.keeper, am.inflationCalculator)
-}
+// func (am AppModule) BeginBlock(ctx context.Context) error {
+// 	return BeginBlocker(ctx, am.keeper, am.inflationCalculator)
+// }
 
 // AppModuleSimulation functions
 
