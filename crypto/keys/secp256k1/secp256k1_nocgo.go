@@ -4,7 +4,10 @@
 package secp256k1
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"os"
 
 	"github.com/cometbft/cometbft/crypto"
 	secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -24,15 +27,23 @@ func (privKey *PrivKey) Sign(msg []byte) ([]byte, error) {
 // VerifyBytes verifies a signature of the form R || S.
 // It rejects signatures which are not in lower-S form.
 func (pubKey *PubKey) VerifySignature(msg, sigStr []byte) bool {
+	const colorRed = "\033[0;31m"
+	const colorNone = "\033[0m"
+	fmt.Fprintf(os.Stdout, "%s *********************************************** %s", colorRed, colorNone)
 	if len(sigStr) != 64 {
 		return false
 	}
 	pub, err := secp256k1.ParsePubKey(pubKey.Key)
+	fmt.Println("secp256k1_nocgo.go - pubKey: ", hex.EncodeToString(pubKey.Bytes()))
 	if err != nil {
 		return false
 	}
 	// parse the signature, will return error if it is not in lower-S form
 	signature, err := signatureFromBytes(sigStr)
+	fmt.Println("secp256k1_nocgo.go - signature: ", hex.EncodeToString(sigStr))
+	fmt.Println("secp256k1_nocgo.go - msg: ", hex.EncodeToString(msg))
+	fmt.Println("secp256k1_nocgo.go - sha256(msg): ", hex.EncodeToString(crypto.Sha256(msg)))
+	fmt.Fprintf(os.Stdout, "%s *********************************************** %s", colorRed, colorNone)
 	if err != nil {
 		return false
 	}

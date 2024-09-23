@@ -2,11 +2,12 @@ package signing
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"os"
 
 	signingv1beta1 "cosmossdk.io/api/cosmos/tx/signing/v1beta1"
 	txsigning "cosmossdk.io/x/tx/signing"
-
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -77,6 +78,14 @@ func VerifySignature(
 		if err != nil {
 			return err
 		}
+		const colorRed = "\033[0;31m"
+		const colorNone = "\033[0m"
+		fmt.Fprintf(os.Stdout, "%s *********************************************** %s", colorRed, colorNone)
+		fmt.Println("verify.go - signMode: ", signMode)
+		fmt.Println("verify.go - signBytes: ", hex.EncodeToString(signBytes))
+		fmt.Println("verify.go - signature: ", hex.EncodeToString(data.Signature))
+		fmt.Println("verify.go - pubKey: ", hex.EncodeToString(pubKey.Bytes()))
+		fmt.Fprintf(os.Stdout, "%s *********************************************** %s", colorRed, colorNone)
 		if !pubKey.VerifySignature(signBytes, data.Signature) {
 			return fmt.Errorf("unable to verify single signer signature")
 		}
