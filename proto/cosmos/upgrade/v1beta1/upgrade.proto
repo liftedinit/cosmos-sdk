@@ -28,7 +28,7 @@ message Plan {
   // has been removed from the SDK.
   // If this field is not empty, an error will be thrown.
   google.protobuf.Timestamp time = 2
-      [deprecated = true, (gogoproto.stdtime) = true, (gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+      [deprecated = true];
 
   // The height at which the upgrade must be performed.
   int64 height = 3;
